@@ -22,7 +22,6 @@ import app.tivi.domain.Interactor
 import app.tivi.domain.interactors.UpdateShowSeasonData.Params
 import app.tivi.util.AppCoroutineDispatchers
 import kotlinx.coroutines.ensureActive
-import kotlinx.coroutines.plus
 import kotlinx.coroutines.withContext
 import javax.inject.Inject
 
@@ -31,22 +30,26 @@ class UpdateShowSeasonData @Inject constructor(
     private val followedShowsRepository: FollowedShowsRepository,
     private val dispatchers: AppCoroutineDispatchers
 ) : Interactor<Params>() {
-    override suspend fun doWork(params: Params) {
-        withContext(dispatchers.io) {
-            if (followedShowsRepository.isShowFollowed(params.showId)) {
-                // Then update the seasons/episodes
-                if (params.forceRefresh || seasonsEpisodesRepository.needShowSeasonsUpdate(params.showId)) {
-                    seasonsEpisodesRepository.updateSeasonsEpisodes(params.showId)
-                }
+    override suspend fun doWork(params: Params) = withContext(dispatchers.io) {
+        if (!followedShowsRepository.isShowFollowed(params.showId)) {
+            seasonsEpisodesRepository.removeShowSeasonData(params.showId)
+            return@withContext
+        }
 
-                ensureActive()
-                // Finally update any watched progress
-                if (params.forceRefresh || seasonsEpisodesRepository.needShowEpisodeWatchesSync(params.showId)) {
-                    seasonsEpisodesRepository.syncEpisodeWatchesForShow(params.showId)
-                }
-            } else {
-                seasonsEpisodesRepository.removeShowSeasonData(params.showId)
-            }
+        // Then update the seasons/episodes
+        if (params.forceRefresh ||
+            seasonsEpisodesRepository.needShowSeasonsUpdate(params.showId)
+        ) {
+            seasonsEpisodesRepository.updateSeasonsEpisodes(params.showId)
+        }
+
+        ensureActive()
+        // Finally update any watched progress
+        if (
+            params.forceRefresh ||
+            seasonsEpisodesRepository.needShowEpisodeWatchesSync(params.showId)
+        ) {
+            seasonsEpisodesRepository.syncEpisodeWatchesForShow(params.showId)
         }
     }
 

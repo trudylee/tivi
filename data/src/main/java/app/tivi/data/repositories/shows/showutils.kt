@@ -40,7 +40,10 @@ fun mergeShows(
     traktId = trakt.traktId ?: local.traktId,
     traktRating = trakt.traktRating ?: local.traktRating,
     traktVotes = trakt.traktVotes ?: local.traktVotes,
-    traktDataUpdate = trakt.traktDataUpdate ?: local.traktDataUpdate,
+    traktLastUpdated = trakt.traktLastUpdated ?: local.traktLastUpdated,
+    needEpisodeUpdate = local.traktLastUpdated?.let {
+        trakt.traktLastUpdated?.isAfter(it) == true
+    } ?: local.needEpisodeUpdate,
 
     // TMDb specific stuff
     tmdbId = tmdb.tmdbId ?: trakt.tmdbId ?: local.tmdbId,

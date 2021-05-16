@@ -35,9 +35,12 @@ class TraktWatchedShowsDataSource @Inject constructor(
     showMapper: TraktBaseShowToTiviShow
 ) {
     private val entryMapper = object : Mapper<BaseShow, WatchedShowEntry> {
-        override suspend fun map(from: BaseShow): WatchedShowEntry {
-            return WatchedShowEntry(showId = 0, lastWatched = from.last_watched_at!!)
-        }
+        override suspend fun map(from: BaseShow): WatchedShowEntry = WatchedShowEntry(
+            showId = 0,
+            lastWatched = from.last_watched_at!!,
+            traktLastUpdated = from.last_updated_at,
+            needWatchesUpdate = false,
+        )
     }
     private val responseMapper = pairMapperOf(showMapper, entryMapper)
 

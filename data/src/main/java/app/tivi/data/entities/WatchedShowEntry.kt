@@ -42,5 +42,7 @@ import org.threeten.bp.OffsetDateTime
 data class WatchedShowEntry(
     @PrimaryKey(autoGenerate = true) override val id: Long = 0,
     @ColumnInfo(name = "show_id") override val showId: Long,
-    @ColumnInfo(name = "last_watched") val lastWatched: OffsetDateTime
+    @ColumnInfo(name = "last_watched") val lastWatched: OffsetDateTime,
+    @ColumnInfo(name = "last_updated", defaultValue = "null") val traktLastUpdated: OffsetDateTime?,
+    @ColumnInfo(name = "need_update", defaultValue = "false") val needWatchesUpdate: Boolean,
 ) : Entry

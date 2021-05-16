@@ -16,7 +16,9 @@
 
 package app.tivi.data.repositories.episodes
 
-import app.tivi.data.DatabaseTransactionRunner
+import app.tivi.data.atSystemOffset
+import app.tivi.data.daos.TiviShowDao
+import app.tivi.data.daos.WatchedShowDao
 import app.tivi.data.entities.ActionDate
 import app.tivi.data.entities.Episode
 import app.tivi.data.entities.EpisodeWatchEntry
@@ -25,13 +27,11 @@ import app.tivi.data.entities.PendingAction
 import app.tivi.data.entities.RefreshType
 import app.tivi.data.entities.Season
 import app.tivi.data.entities.Success
-import app.tivi.data.instantInPast
 import app.tivi.inject.Tmdb
 import app.tivi.inject.Trakt
 import app.tivi.trakt.TraktAuthState
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
-import org.threeten.bp.Instant
 import org.threeten.bp.OffsetDateTime
 import javax.inject.Inject
 import javax.inject.Provider
@@ -42,12 +42,13 @@ class SeasonsEpisodesRepository @Inject constructor(
     private val episodeWatchStore: EpisodeWatchStore,
     private val episodeWatchLastLastRequestStore: EpisodeWatchLastRequestStore,
     private val seasonsEpisodesStore: SeasonsEpisodesStore,
+    private val showDao: TiviShowDao,
+    private val watchedShowDao: WatchedShowDao,
     private val seasonsLastRequestStore: SeasonsLastRequestStore,
     private val traktSeasonsDataSource: SeasonsEpisodesDataSource,
     @Trakt private val traktEpisodeDataSource: EpisodeDataSource,
     @Tmdb private val tmdbEpisodeDataSource: EpisodeDataSource,
     private val traktAuthState: Provider<TraktAuthState>,
-    private val transactionRunner: DatabaseTransactionRunner
 ) {
     fun observeSeasonsForShow(showId: Long) = seasonsEpisodesStore.observeShowSeasonsWithEpisodes(showId)
 
@@ -60,11 +61,8 @@ class SeasonsEpisodesRepository @Inject constructor(
     fun observeNextEpisodeToWatch(showId: Long) = seasonsEpisodesStore.observeShowNextEpisodeToWatch(showId)
 
     suspend fun needShowSeasonsUpdate(
-        showId: Long,
-        expiry: Instant = instantInPast(days = 7)
-    ): Boolean {
-        return seasonsLastRequestStore.isRequestBefore(showId, expiry)
-    }
+        showId: Long
+    ): Boolean = showDao.needsEpisodeUpdate(showId)
 
     suspend fun removeShowSeasonData(showId: Long) {
         seasonsEpisodesStore.deleteShowSeasonData(showId)
@@ -87,6 +85,7 @@ class SeasonsEpisodesRepository @Inject constructor(
                 }.also { seasonsEpisodesStore.save(showId, it) }
 
                 seasonsLastRequestStore.updateLastRequest(showId)
+                showDao.resetEpisodeUpdate(showId)
             }
             is ErrorResult -> throw response.throwable
         }
@@ -120,27 +119,25 @@ class SeasonsEpisodesRepository @Inject constructor(
         showId: Long,
         refreshType: RefreshType = RefreshType.QUICK,
         forceRefresh: Boolean = false,
-        lastUpdated: OffsetDateTime? = null
     ) {
-        if (refreshType == RefreshType.QUICK) {
-            // If we have a lastUpdated time and we've already fetched the watched episodes, we can try
-            // and do a delta fetch
-            if (lastUpdated != null && episodeWatchLastLastRequestStore.hasBeenRequested(showId)) {
-                if (forceRefresh || needShowEpisodeWatchesSync(showId, lastUpdated.toInstant())) {
-                    updateShowEpisodeWatches(showId, lastUpdated.plusSeconds(1))
-                }
-            } else {
-                // We don't have a trakt date/time to use as a delta, so we'll do a full refresh.
-                // If the user hasn't watched the show, this should be empty anyway
-                if (forceRefresh || needShowEpisodeWatchesSync(showId)) {
-                    updateShowEpisodeWatches(showId)
-                }
-            }
-        } else if (refreshType == RefreshType.FULL) {
-            // A full refresh is requested, so we pull down all history
-            if (forceRefresh || needShowEpisodeWatchesSync(showId)) {
-                updateShowEpisodeWatches(showId)
-            }
+        if (
+            refreshType == RefreshType.QUICK &&
+            episodeWatchLastLastRequestStore.hasBeenRequested(showId) &&
+            (forceRefresh || needShowEpisodeWatchesSync(showId))
+        ) {
+            // If we have a lastUpdated time and we've already fetched the watched episodes,
+            // we can try and do a delta fetch
+            val lastRequest = episodeWatchLastLastRequestStore.getRequestInstant(showId)
+            updateShowEpisodeWatches(
+                showId = showId,
+                since = lastRequest?.plusSeconds(1)?.atSystemOffset()
+            )
+            return
+        }
+
+        // Else we need to do a 'normal refresh' to pull down all history
+        if (forceRefresh || needShowEpisodeWatchesSync(showId)) {
+            updateShowEpisodeWatches(showId)
         }
     }
 
@@ -166,11 +163,8 @@ class SeasonsEpisodesRepository @Inject constructor(
         }
     }
 
-    suspend fun needShowEpisodeWatchesSync(
-        showId: Long,
-        expiry: Instant = instantInPast(hours = 1)
-    ): Boolean {
-        return episodeWatchLastLastRequestStore.isRequestBefore(showId, expiry)
+    suspend fun needShowEpisodeWatchesSync(showId: Long): Boolean {
+        return watchedShowDao.needsEpisodeWatchUpdate(showId)
     }
 
     suspend fun markSeasonWatched(seasonId: Long, onlyAired: Boolean, date: ActionDate) {
@@ -295,7 +289,9 @@ class SeasonsEpisodesRepository @Inject constructor(
         } else {
             episodeWatchStore.syncShowWatchEntries(showId, watches)
         }
+
         episodeWatchLastLastRequestStore.updateLastRequest(showId)
+        watchedShowDao.resetEpisodeWatchUpdate(showId)
     }
 
     private suspend fun fetchEpisodeWatchesFromRemote(episodeId: Long) {

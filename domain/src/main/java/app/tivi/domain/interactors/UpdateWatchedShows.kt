@@ -34,18 +34,16 @@ class UpdateWatchedShows @Inject constructor(
     private val dispatchers: AppCoroutineDispatchers,
     private val logger: Logger,
 ) : Interactor<UpdateWatchedShows.Params>() {
-    override suspend fun doWork(params: Params) {
-        withContext(dispatchers.io) {
-            watchedShowsStore.fetch(Unit, params.forceRefresh).forEach {
-                ensureActive()
-                showsStore.fetch(it.showId)
+    override suspend fun doWork(params: Params) = withContext(dispatchers.io) {
+        watchedShowsStore.fetch(Unit, params.forceRefresh).forEach {
+            ensureActive()
+            showsStore.fetch(it.showId)
 
-                ensureActive()
-                try {
-                    showImagesStore.fetch(it.showId)
-                } catch (t: Throwable) {
-                    logger.e("Error while fetching images for show: ${it.showId}", t)
-                }
+            ensureActive()
+            try {
+                showImagesStore.fetch(it.showId)
+            } catch (t: Throwable) {
+                logger.e("Error while fetching images for show: ${it.showId}", t)
             }
         }
     }

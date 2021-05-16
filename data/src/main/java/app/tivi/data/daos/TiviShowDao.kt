@@ -72,6 +72,12 @@ abstract class TiviShowDao : EntityDao<TiviShow>() {
     @Query("DELETE FROM shows")
     abstract suspend fun deleteAll()
 
+    @Query("SELECT need_episode_update FROM shows WHERE id = :showId")
+    abstract suspend fun needsEpisodeUpdate(showId: Long): Boolean
+
+    @Query("UPDATE shows SET need_episode_update = 'false' WHERE id = :showId")
+    abstract suspend fun resetEpisodeUpdate(showId: Long)
+
     suspend fun getIdOrSavePlaceholder(show: TiviShow): Long {
         val idForTraktId: Long? = if (show.traktId != null) getIdForTraktId(show.traktId) else null
         val idForTmdbId: Long? = if (show.tmdbId != null) getIdForTmdbId(show.tmdbId) else null

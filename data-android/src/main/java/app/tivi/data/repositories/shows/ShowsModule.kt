@@ -65,7 +65,10 @@ object ShowStoreModule {
             writer = { id, response ->
                 showDao.withTransaction {
                     showDao.insertOrUpdate(
-                        mergeShows(local = showDao.getShowWithIdOrThrow(id), trakt = response)
+                        mergeShows(
+                            local = showDao.getShowWithIdOrThrow(id),
+                            trakt = response
+                        )
                     )
                 }
             },

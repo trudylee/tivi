@@ -45,7 +45,7 @@ class TraktShowToTiviShow @Inject constructor(
         country = from.country,
         firstAired = from.first_aired,
         _genres = from.genres?.joinToString(","),
-        traktDataUpdate = from.updated_at,
+        traktLastUpdated = from.updated_at,
         status = from.status?.let {
             statusMapper.map(it)
         },

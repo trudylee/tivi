@@ -24,6 +24,7 @@ import app.tivi.data.entities.SortOption
 import app.tivi.data.entities.WatchedShowEntry
 import app.tivi.data.resultentities.WatchedShowEntryWithShow
 import kotlinx.coroutines.flow.Flow
+import org.threeten.bp.OffsetDateTime
 
 @Dao
 abstract class WatchedShowDao : EntryDao<WatchedShowEntry, WatchedShowEntryWithShow>() {
@@ -38,6 +39,15 @@ abstract class WatchedShowDao : EntryDao<WatchedShowEntry, WatchedShowEntryWithS
     @Transaction
     @Query(ENTRY_QUERY_ORDER_LAST_WATCHED)
     abstract fun entriesObservable(): Flow<List<WatchedShowEntry>>
+
+    @Query("SELECT need_update FROM watched_entries WHERE show_id = :showId")
+    abstract suspend fun needsEpisodeWatchUpdate(showId: Long): Boolean
+
+    @Query("UPDATE watched_entries SET need_update = 'false' WHERE show_id = :showId")
+    abstract suspend fun resetEpisodeWatchUpdate(showId: Long)
+
+    @Query("SELECT last_updated FROM watched_entries WHERE show_id = :showId")
+    abstract suspend fun getLastUpdated(showId: Long): OffsetDateTime?
 
     fun observePagedList(
         filter: String?,

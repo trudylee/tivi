@@ -16,16 +16,18 @@
 
 package app.tivi.domain.interactors
 
-import app.tivi.data.daos.TiviShowDao
 import app.tivi.data.entities.RefreshType
 import app.tivi.data.fetch
 import app.tivi.data.repositories.episodes.SeasonsEpisodesRepository
 import app.tivi.data.repositories.followedshows.FollowedShowsRepository
 import app.tivi.data.repositories.showimages.ShowImagesStore
 import app.tivi.data.repositories.shows.ShowStore
+import app.tivi.data.repositories.watchedshows.WatchedShowsStore
 import app.tivi.domain.Interactor
 import app.tivi.util.AppCoroutineDispatchers
 import app.tivi.util.Logger
+import com.dropbox.android.external.store4.fresh
+import kotlinx.coroutines.async
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.withContext
 import javax.inject.Inject
@@ -34,7 +36,7 @@ class UpdateFollowedShows @Inject constructor(
     private val followedShowsRepository: FollowedShowsRepository,
     private val seasonEpisodeRepository: SeasonsEpisodesRepository,
     private val showStore: ShowStore,
-    private val showDao: TiviShowDao,
+    private val watchedShowsStore: WatchedShowsStore,
     private val showImagesStore: ShowImagesStore,
     private val logger: Logger,
     private val dispatchers: AppCoroutineDispatchers
@@ -43,14 +45,23 @@ class UpdateFollowedShows @Inject constructor(
     override suspend fun doWork(params: Params) {
         withContext(dispatchers.io) {
             if (params.forceRefresh || followedShowsRepository.needFollowedShowsSync()) {
-                followedShowsRepository.syncFollowedShows()
+                val job1 = async {
+                    followedShowsRepository.syncFollowedShows()
+                }
+                // Refresh watched
+                val job2 = async {
+                    watchedShowsStore.fresh(Unit)
+                }
+
+                job1.join()
+                job2.join()
             }
 
             // Finally sync the seasons/episodes and watches
             followedShowsRepository.getFollowedShows().forEach {
                 ensureActive()
 
-                showStore.fetch(it.showId)
+                showStore.fetch(it.showId, params.forceRefresh)
                 try {
                     showImagesStore.fetch(it.showId)
                 } catch (t: Throwable) {
@@ -59,16 +70,17 @@ class UpdateFollowedShows @Inject constructor(
 
                 ensureActive()
                 // Download the seasons + episodes
-                if (params.forceRefresh || seasonEpisodeRepository.needShowSeasonsUpdate(it.showId)) {
+                if (seasonEpisodeRepository.needShowSeasonsUpdate(it.showId)) {
+                    logger.d("Updating season/episode data update for ${it.showId}")
                     seasonEpisodeRepository.updateSeasonsEpisodes(it.showId)
+                } else {
+                    logger.d("Skipping season/episode data update for ${it.showId}")
                 }
 
                 ensureActive()
                 seasonEpisodeRepository.updateShowEpisodeWatches(
-                    it.showId,
-                    params.type,
-                    params.forceRefresh,
-                    showDao.getShowWithId(it.showId)?.traktDataUpdate
+                    showId = it.showId,
+                    refreshType = params.type,
                 )
             }
         }

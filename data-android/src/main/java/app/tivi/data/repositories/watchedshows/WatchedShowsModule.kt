@@ -46,12 +46,11 @@ internal object WatchedShowsModule {
         lastRequestStore: WatchedShowsLastRequestStore
     ): WatchedShowsStore = StoreBuilder.from(
         fetcher = Fetcher.of { _: Unit ->
-            traktWatchedShows()
-                .also {
-                    if (it is Success) {
-                        lastRequestStore.updateLastRequest()
-                    }
-                }.getOrThrow()
+            traktWatchedShows().also {
+                if (it is Success) {
+                    lastRequestStore.updateLastRequest()
+                }
+            }.getOrThrow()
         },
         sourceOfTruth = SourceOfTruth.of(
             reader = {
@@ -69,7 +68,15 @@ internal object WatchedShowsModule {
             writer = { _: Unit, response ->
                 watchedShowsDao.withTransaction {
                     val entries = response.map { (show, entry) ->
-                        entry.copy(showId = showDao.getIdOrSavePlaceholder(show))
+                        val showId = showDao.getIdOrSavePlaceholder(show)
+                        val lastUpdated = entry.traktLastUpdated
+                        val cachedUpdated = watchedShowsDao.getLastUpdated(showId)
+                        entry.copy(
+                            showId = showId,
+                            needWatchesUpdate = if (cachedUpdated != null && lastUpdated != null) {
+                                lastUpdated.isAfter(cachedUpdated)
+                            } else entry.needWatchesUpdate
+                        )
                     }
                     watchedShowsDao.deleteAll()
                     watchedShowsDao.insertAll(entries)
