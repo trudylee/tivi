@@ -29,7 +29,9 @@ import app.tivi.data.entities.Season
 import app.tivi.data.entities.ShowStatus
 import app.tivi.data.entities.TiviShow
 import app.tivi.ui.GenreStringer
-import dagger.hilt.android.qualifiers.ActivityContext
+import dagger.hilt.android.qualifiers.ApplicationContext
+import org.threeten.bp.DayOfWeek
+import org.threeten.bp.LocalTime
 import org.threeten.bp.OffsetDateTime
 import org.threeten.bp.ZoneId
 import org.threeten.bp.ZonedDateTime
@@ -38,11 +40,11 @@ import java.util.Locale
 import javax.inject.Inject
 
 class TiviTextCreator @Inject constructor(
-    @ActivityContext private val context: Context,
+    @ApplicationContext private val context: Context,
     private val tiviDateFormatter: TiviDateFormatter,
 ) {
     fun showTitle(
-        show: TiviShow
+        show: TiviShow,
     ): CharSequence = StringBuilder()
         .append(show.title)
         .apply {
@@ -61,7 +63,7 @@ class TiviTextCreator @Inject constructor(
 
     fun followedShowEpisodeWatchStatus(
         episodeCount: Int,
-        watchedEpisodeCount: Int
+        watchedEpisodeCount: Int,
     ): CharSequence = when {
         watchedEpisodeCount < episodeCount -> {
             context.getString(
@@ -82,7 +84,7 @@ class TiviTextCreator @Inject constructor(
     }
 
     fun seasonTitle(
-        season: Season
+        season: Season,
     ): String = when {
         season.title != null -> season.title!!
         season.number != null -> {
@@ -95,7 +97,7 @@ class TiviTextCreator @Inject constructor(
         watched: Int,
         toWatch: Int,
         toAir: Int,
-        nextToAirDate: OffsetDateTime? = null
+        nextToAirDate: OffsetDateTime? = null,
     ): CharSequence {
         val text = StringBuilder()
         if (watched > 0) {
@@ -161,11 +163,11 @@ class TiviTextCreator @Inject constructor(
         return genres?.joinToString(", ") { context.getString(GenreStringer.getLabel(it)) }
     }
 
-    fun airsText(show: TiviShow): CharSequence? {
-        val airTime = show.airsTime
-        val airTz = show.airsTimeZone
-        val airDay = show.airsDay
-
+    fun airsText(
+        airTime: LocalTime? = null,
+        airTz: ZoneId? = null,
+        airDay: DayOfWeek? = null,
+    ): CharSequence? {
         if (airTime == null || airTz == null || airDay == null) {
             // If we don't have all the necessary info, return null
             return null
@@ -173,7 +175,7 @@ class TiviTextCreator @Inject constructor(
 
         val local = ZonedDateTime.now()
             .withZoneSameLocal(airTz)
-            .with(show.airsDay)
+            .with(airDay)
             .with(airTime)
             .withZoneSameInstant(ZoneId.systemDefault())
 

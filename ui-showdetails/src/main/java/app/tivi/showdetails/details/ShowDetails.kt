@@ -124,7 +124,6 @@ import app.tivi.data.entities.ImageType
 import app.tivi.data.entities.Season
 import app.tivi.data.entities.ShowStatus
 import app.tivi.data.entities.ShowTmdbImage
-import app.tivi.data.entities.TiviShow
 import app.tivi.data.entities.TmdbImageEntity
 import app.tivi.data.resultentities.EpisodeWithSeason
 import app.tivi.data.resultentities.RelatedShowEntryWithShow
@@ -135,6 +134,7 @@ import app.tivi.data.resultentities.numberAiredToWatch
 import app.tivi.data.resultentities.numberToAir
 import app.tivi.data.resultentities.numberWatched
 import app.tivi.data.views.FollowedShowsWatchStats
+import app.tivi.showdetails.details.model.ShowUiModel
 import coil.compose.rememberImagePainter
 import com.google.accompanist.flowlayout.FlowRow
 import com.google.accompanist.insets.ui.Scaffold
@@ -299,7 +299,7 @@ internal fun ShowDetails(
 
 @Composable
 private fun ShowDetailsScrollingContent(
-    show: TiviShow,
+    show: ShowUiModel,
     posterImage: TmdbImageEntity?,
     backdropImage: TmdbImageEntity?,
     relatedShows: List<RelatedShowEntryWithShow>,
@@ -369,7 +369,7 @@ private fun ShowDetailsScrollingContent(
         if (show.summary != null) {
             item {
                 ExpandingText(
-                    text = show.summary!!,
+                    text = show.summary,
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(horizontal = Layout.bodyMargin, vertical = Layout.gutter)
@@ -468,7 +468,7 @@ private fun ShowDetailsScrollingContent(
 
 @Composable
 private fun PosterInfoRow(
-    show: TiviShow,
+    show: ShowUiModel,
     posterImage: TmdbImageEntity?,
     modifier: Modifier = Modifier,
 ) {
@@ -626,7 +626,7 @@ private fun ShowStatusPanel(
 
 @Composable
 private fun AirsInfoPanel(
-    show: TiviShow,
+    show: ShowUiModel,
     modifier: Modifier = Modifier,
 ) {
     Column(modifier) {
@@ -639,7 +639,7 @@ private fun AirsInfoPanel(
 
         val textCreator = LocalTiviTextCreator.current
         Text(
-            text = textCreator.airsText(show).toString(),
+            text = textCreator.airsText(show.airsTime, show.airsTimeZone, show.airsDay).toString(),
             style = MaterialTheme.typography.body2
         )
     }
@@ -819,7 +819,7 @@ private fun NextEpisodeToWatch(
 
 @Composable
 private fun InfoPanels(
-    show: TiviShow,
+    show: ShowUiModel,
     modifier: Modifier = Modifier,
 ) {
     FlowRow(
@@ -828,19 +828,19 @@ private fun InfoPanels(
         modifier = modifier,
     ) {
         if (show.traktRating != null) {
-            TraktRatingInfoPanel(show.traktRating!!, show.traktVotes ?: 0)
+            TraktRatingInfoPanel(show.traktRating, show.traktVotes ?: 0)
         }
         if (show.network != null) {
-            NetworkInfoPanel(networkName = show.network!!, networkLogoPath = show.networkLogoPath)
+            NetworkInfoPanel(networkName = show.network, networkLogoPath = show.networkLogoPath)
         }
         if (show.status != null) {
-            ShowStatusPanel(show.status!!)
+            ShowStatusPanel(show.status)
         }
         if (show.certification != null) {
-            CertificateInfoPanel(show.certification!!)
+            CertificateInfoPanel(show.certification)
         }
         if (show.runtime != null) {
-            RuntimeInfoPanel(show.runtime!!)
+            RuntimeInfoPanel(show.runtime)
         }
         if (show.airsDay != null && show.airsTime != null && show.airsTimeZone != null) {
             AirsInfoPanel(show)

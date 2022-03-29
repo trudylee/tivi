@@ -39,11 +39,13 @@ import app.tivi.domain.observers.ObserveShowNextEpisodeToWatch
 import app.tivi.domain.observers.ObserveShowSeasonsEpisodesWatches
 import app.tivi.domain.observers.ObserveShowViewStats
 import app.tivi.extensions.combine
+import app.tivi.showdetails.details.model.TiviShowToShowUiModel
 import app.tivi.util.Logger
 import app.tivi.util.ObservableLoadingCounter
 import app.tivi.util.collectStatus
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -66,6 +68,7 @@ internal class ShowDetailsViewModel @Inject constructor(
     private val changeShowFollowStatus: ChangeShowFollowStatus,
     private val changeSeasonFollowStatus: ChangeSeasonFollowStatus,
     private val logger: Logger,
+    private val tiviShowUiModelMapper: TiviShowToShowUiModel,
 ) : ViewModel() {
     private val showId: Long = savedStateHandle.get("showId")!!
 
@@ -74,7 +77,7 @@ internal class ShowDetailsViewModel @Inject constructor(
 
     val state = combine(
         observeShowFollowStatus.flow,
-        observeShowDetails.flow,
+        observeShowDetails.flow.map(tiviShowUiModelMapper::map),
         observeShowImages.flow,
         loadingState.observable,
         observeRelatedShows.flow,

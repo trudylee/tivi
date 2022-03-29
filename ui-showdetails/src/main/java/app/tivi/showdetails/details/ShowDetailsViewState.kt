@@ -19,16 +19,16 @@ package app.tivi.showdetails.details
 import androidx.compose.runtime.Immutable
 import app.tivi.api.UiMessage
 import app.tivi.data.entities.ShowTmdbImage
-import app.tivi.data.entities.TiviShow
 import app.tivi.data.resultentities.EpisodeWithSeason
 import app.tivi.data.resultentities.RelatedShowEntryWithShow
 import app.tivi.data.resultentities.SeasonWithEpisodesAndWatches
 import app.tivi.data.views.FollowedShowsWatchStats
+import app.tivi.showdetails.details.model.ShowUiModel
 
 @Immutable
 internal data class ShowDetailsViewState(
     val isFollowed: Boolean = false,
-    val show: TiviShow = TiviShow.EMPTY_SHOW,
+    val show: ShowUiModel = ShowUiModel(),
     val posterImage: ShowTmdbImage? = null,
     val backdropImage: ShowTmdbImage? = null,
     val relatedShows: List<RelatedShowEntryWithShow> = emptyList(),
